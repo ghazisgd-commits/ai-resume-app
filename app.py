@@ -3,28 +3,36 @@ import google.generativeai as genai
 import PyPDF2
 
 # --- Configuration ---
-# API Key is securely retrieved from Streamlit's Secrets and will be hidden from users.
 API_KEY = st.secrets.get("GEMINI_API_KEY") 
 MODEL_NAME = 'gemini-2.0-flash' 
 
 # --- Page Setup ---
-st.set_page_config(page_title="AI Resume Tailor", page_icon="🚀", layout="wide")
+st.set_page_config(page_title="Multilingual AI Resume", page_icon="🌍", layout="wide")
 
 # --- Main App Interface ---
-st.title("🚀 AI Resume & Cover Letter Generator")
-st.markdown("### آپ کی نوکری کے مطابق CV اور کور لیٹر چند سیکنڈز میں تیار!")
+st.title("🌍 Multilingual AI Resume & Cover Letter")
+st.markdown("### کسی بھی زبان میں CV اور کور لیٹر بنوائیں!")
 
-st.info("💡 یہاں اپنے ریزیومے کی فائل اپلوڈ کریں اور مطلوبہ نوکری کی تفصیل (Job Description) پیسٹ کریں۔")
+# --- Sidebar for Options ---
+with st.sidebar:
+    st.header("⚙️ Settings")
+    # Language Selection Dropdown
+    language_option = st.selectbox(
+        "Select Output Language / جواب کس زبان میں چاہیے؟",
+        ("English", "Urdu (اردو)", "Roman Urdu", "Arabic (العربية)")
+    )
+    st.info(f"You selected: **{language_option}**")
+
+st.info("💡 اپنا پرانا ریزیومے اپلوڈ کریں اور نوکری کی تفصیل پیسٹ کریں۔")
 
 # 1. Upload PDF
 uploaded_file = st.file_uploader("Upload Resume (PDF)", type="pdf")
 
 # 2. Job Description
-job_description = st.text_area("Paste the Job Description (from the job posting) here:", height=200)
+job_description = st.text_area("Paste the Job Description here:", height=200)
 
-# Function to extract text from PDF
+# Function to extract text
 def input_pdf_text(uploaded_file):
-    """Extracts text from the PDF file."""
     reader = PyPDF2.PdfReader(uploaded_file)
     text = ""
     for page in range(len(reader.pages)):
@@ -33,44 +41,39 @@ def input_pdf_text(uploaded_file):
     return text
 
 # --- Button Logic ---
-if st.button("Generate Optimized Resume and Cover Letter"):
+if st.button("Generate Result / رزلٹ تیار کریں"):
     if not API_KEY:
-        # This error should only appear if the key is missing from Streamlit Secrets
-        st.error("Application Error: API Key is missing in the backend. Please contact the developer.")
+        st.error("Error: API Key is missing.")
     elif uploaded_file is None or not job_description:
-        st.warning("Please upload a file and enter the job description to continue.")
+        st.warning("Please upload a file and enter description.")
     else:
-        # Process started
-        with st.spinner("AI is analyzing your profile and the job requirements..."):
+        with st.spinner(f"AI is writing in {language_option}... Please wait..."):
             try:
-                # 1. Configure AI
                 genai.configure(api_key=API_KEY)
                 model = genai.GenerativeModel(MODEL_NAME)
-                
-                # 2. Extract Text
                 resume_text = input_pdf_text(uploaded_file)
 
-                # 3. Prompt for Tailoring
+                # --- The Magic Prompt (Updated for Language) ---
                 input_prompt = f"""
-                Act as a professional HR Consultant specializing in ATS optimization.
+                Act as a professional HR Consultant.
                 Resume Content: {resume_text}
                 Job Description: {job_description}
+                Target Language: {language_option}
                 
                 Task:
-                1. Rewrite the Resume Summary and bullet points to maximize relevance to the Job Description (use direct keywords).
-                2. Write a highly professional Cover Letter specifically tailored for this job.
+                1. Update the Resume Summary and Skills matching the Job Description.
+                2. Write a professional Cover Letter.
                 
-                Output should be in clear Markdown format.
+                IMPORTANT: Write the ENTIRE output (Resume and Cover Letter) strictly in **{language_option}** language.
+                Output should be in Markdown format.
                 """
                 
-                # 4. Generate Content
                 response = model.generate_content(input_prompt)
                 
-                # 5. Show Result
-                st.success("Analysis Complete!")
-                st.subheader("Your Optimized Result:")
+                st.success("Done!")
+                st.subheader("Your Result:")
                 st.markdown("---")
                 st.markdown(response.text)
                 
             except Exception as e:
-                st.error(f"An unexpected error occurred: {e}. Check the API Key and try again with a smaller file.")
+                st.error(f"Error: {e}")
